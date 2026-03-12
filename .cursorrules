@@ -1,0 +1,68 @@
+# Project Context
+This is an AI engineering project. The developer is learning through hands-on building,
+so explanations should be included alongside code when introducing new patterns.
+
+# Developer Profile
+- Background: QA engineering (strong on testing, edge cases, validation logic)
+- Learning focus: AI/ML engineering, Python, mobile app development
+- Stack: Python, Expo/React Native, Anthropic Claude API
+- Goal: Build portfolio-ready, production-quality projects — not just demos
+
+# General Principles
+- Prefer clarity over cleverness. Code should be readable and well-commented.
+- Always explain WHY a pattern is used, not just WHAT it does.
+- Suggest edge cases and input validation — leverage the QA mindset.
+- When multiple approaches exist, briefly list the tradeoffs before picking one.
+- Prefer modular, reusable code. Build components/functions that can be repurposed across projects.
+
+# Python Rules
+- Use Python 3.10+
+- Follow PEP 8 style conventions
+- Use type hints on all function signatures
+- Use docstrings on all functions and classes
+- Prefer dataclasses or Pydantic models over raw dicts for structured data
+- Use pathlib over os.path
+- Handle exceptions explicitly — never bare `except:`
+- Use virtual environments (venv); assume one is active
+- For AI/ML work: prefer LangChain or direct Anthropic SDK depending on complexity
+
+# AI / LLM Rules
+- Use the official Anthropic Python SDK (`anthropic`) for Claude API calls
+- Always define system prompts as separate string constants, not inline
+- Structure prompts clearly: system role, context, task, output format
+- Add retry logic for API calls (network failures happen)
+- Never hardcode API keys — use `.env` files and `python-dotenv`
+- Log token usage when possible for cost awareness
+- When building RAG or retrieval: chunk thoughtfully, don't just split by character count
+
+# Testing Rules (lean into QA background)
+- Write tests alongside features, not after
+- Use pytest as the testing framework
+- Aim for: happy path + at least 2 edge cases per function
+- For AI outputs: test that responses are non-empty and match expected structure
+- Mock external API calls in tests (don't hit real APIs in test suite)
+
+# React Native / Expo Rules
+- Use Expo managed workflow unless ejecting is explicitly required
+- Use TypeScript (`.tsx`) for all components
+- Follow component structure: imports → types → component → styles
+- Use `StyleSheet.create()` for styles, not inline style objects
+- Keep components small and single-responsibility
+- Use React Navigation for routing
+- Handle loading and error states explicitly in every screen
+- Consider Arabic RTL layout support: use `I18nManager` where relevant
+
+# File & Folder Structure
+- Group by feature, not by file type
+  Good:  /features/chat/ChatScreen.tsx, chat.service.ts, chat.types.ts
+  Bad:   /screens/ChatScreen.tsx, /services/chat.ts, /types/chat.ts
+- Keep reusable utilities in /utils or /lib
+- Keep all prompt templates in /prompts folder
+- Environment config in .env (never committed to git)
+
+# What to Avoid
+- Don't use deprecated libraries or APIs
+- Don't generate placeholder "TODO" code — write the real implementation
+- Don't skip error handling to keep examples short
+- Don't use `any` type in TypeScript unless absolutely necessary
+- Don't suggest no-code solutions — hands-on coding is the priority here
