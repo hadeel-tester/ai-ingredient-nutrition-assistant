@@ -190,36 +190,42 @@ def _render_sidebar() -> None:
         )
         st.divider()
 
+        st.markdown("**Quick product lookup**")
+        lookup_mode = st.radio(
+            "Lookup mode",
+            options=["By name", "By barcode"],
+            horizontal=True,
+            key="lookup_mode",
+            label_visibility="collapsed",
+        )
+
+        if lookup_mode == "By name":
+            product_name = st.text_input(
+                "Enter product name",
+                placeholder="e.g. Nutella, Coca-Cola",
+                key="product_name_input",
+                label_visibility="collapsed",
+            )
+            if st.button("🔍 Look up", use_container_width=True) and product_name.strip():
+                st.session_state.barcode_query = f"Look up product: {product_name.strip()}"
+                st.rerun()
+        else:
+            barcode = st.text_input(
+                "Enter barcode",
+                placeholder="e.g. 3017620422003",
+                key="barcode_input",
+                label_visibility="collapsed",
+            )
+            if st.button("🔍 Look up", use_container_width=True) and barcode.strip():
+                st.session_state.barcode_query = barcode.strip()
+                st.rerun()
+
+        st.divider()
+
         st.markdown("**AI tools** _(run automatically from chat)_")
         st.caption("The assistant uses these tools on its own — no need to click anything.")
         for icon, name, description in _SIDEBAR_TOOLS:
             st.markdown(f"{icon} **{name}**  \n_{description}_")
-
-        st.divider()
-
-        st.markdown("**Quick product lookup**")
-        product_name = st.text_input(
-            "Enter product name",
-            placeholder="e.g. Nutella, Coca-Cola",
-            key="product_name_input",
-            label_visibility="collapsed",
-        )
-        if st.button("🔍 Look up by name", use_container_width=True) and product_name.strip():
-            st.session_state.barcode_query = f"Look up product: {product_name.strip()}"
-            st.rerun()
-
-        st.divider()
-
-        st.markdown("**Quick barcode lookup**")
-        barcode = st.text_input(
-            "Enter barcode",
-            placeholder="e.g. 3017620422003",
-            key="barcode_input",
-            label_visibility="collapsed",
-        )
-        if st.button("🔍 Look up barcode", use_container_width=True) and barcode.strip():
-            st.session_state.barcode_query = barcode.strip()
-            st.rerun()
 
         st.divider()
 

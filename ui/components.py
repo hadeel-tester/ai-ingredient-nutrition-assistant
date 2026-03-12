@@ -8,15 +8,46 @@ from __future__ import annotations
 import streamlit as st
 
 
+_TRAFFIC_LIGHT_BADGE: dict[str, str] = {
+    "green": "🟢",
+    "amber": "🟠",
+    "red":   "🔴",
+}
+
+
+def _render_traffic_lights(traffic_lights: dict[str, str]) -> None:
+    """Render a traffic_lights dict as coloured emoji badges.
+
+    Args:
+        traffic_lights: Mapping of nutrient name → 'green' | 'amber' | 'red'.
+    """
+    for nutrient, colour in traffic_lights.items():
+        badge = _TRAFFIC_LIGHT_BADGE.get(colour, "⚪")
+        label = nutrient.replace("_", " ").capitalize()
+        st.markdown(f"{badge} **{label}** — {colour}")
+
+
 def tool_result_card(tool_name: str, result: dict) -> None:
     """Render a styled card showing the output of a tool call.
+
+    Traffic light values from the nutrition calculator are rendered as coloured
+    emoji badges (🟢/🟠/🔴); all other tool results fall back to st.json.
 
     Args:
         tool_name: Display name for the tool (e.g. "🔍 Open Food Facts").
         result:    Dict returned by the tool.
     """
     with st.expander(f"Result — {tool_name}", expanded=True):
-        st.json(result)
+        traffic_lights: dict[str, str] | None = result.get("traffic_lights")
+        if traffic_lights and isinstance(traffic_lights, dict):
+            # Render everything except traffic_lights as JSON, then badges below
+            rest = {k: v for k, v in result.items() if k != "traffic_lights"}
+            if rest:
+                st.json(rest)
+            st.markdown("**Traffic lights**")
+            _render_traffic_lights(traffic_lights)
+        else:
+            st.json(result)
 
 
 def rag_process_expander(rag_chunks: list[dict]) -> None:
