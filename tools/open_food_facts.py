@@ -3,7 +3,7 @@
 Given a product barcode or name, calls the Open Food Facts public API and returns
 structured nutrition data: macros, allergens, Nutri-Score grade, and NOVA group.
 
-No API key required. Uses the requests library with a 25-second timeout.
+No API key required. Uses the requests library with a 60-second timeout.
 All extracted fields use .get() with a 'not available' fallback so the returned
 dict never contains None — safe to display and pass to the LLM without null-checks.
 """
@@ -23,7 +23,7 @@ _OFF_SEARCH_URL = (
     "&fields=product_name,product_name_en,ingredients_text,ingredients_text_en"
     ",allergens_tags,nutriments,nutriscore_grade,nova_group"
 )
-_REQUEST_TIMEOUT = 25  # seconds — name search endpoint is slow
+_REQUEST_TIMEOUT = 60  # seconds — name search endpoint is slow
 _NA = "not available"  # fallback for any missing field
 
 

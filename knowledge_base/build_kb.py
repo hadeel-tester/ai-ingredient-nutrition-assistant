@@ -9,13 +9,14 @@ Steps:
     2. Parse YAML frontmatter metadata from each file
     3. Chunk each document by ## section headings
     4. Embed chunks via OpenAI text-embedding-3-small
-    5. Persist to ChromaDB at knowledge_base/data/chroma_db/
+    5. Persist to ChromaDB at the path set by CHROMA_PERSIST_DIR env var (default: ./chroma_db)
 
 The script is idempotent — running it again clears and rebuilds the collection.
 """
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import yaml
@@ -29,7 +30,7 @@ from langchain_openai import OpenAIEmbeddings
 load_dotenv()
 
 DOCUMENTS_DIR: Path = Path(__file__).parent / "documents"
-CHROMA_PERSIST_DIR: Path = Path(__file__).parent / "data" / "chroma_db"
+CHROMA_PERSIST_DIR: Path = Path(os.getenv("CHROMA_PERSIST_DIR", "./chroma_db")).resolve()
 COLLECTION_NAME: str = "nutrition_kb"
 EMBEDDING_MODEL: str = "text-embedding-3-small"
 

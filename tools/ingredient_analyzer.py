@@ -35,8 +35,10 @@ class AnalyzeIngredientsInput(BaseModel):
 def _parse_ingredients(text: str) -> list[str]:
     """Split a raw ingredients string into cleaned individual ingredient names.
 
-    Handles comma-separated lists, strips percentages, parenthetical sub-ingredients,
-    and normalises whitespace. Deduplicates while preserving order.
+    Handles comma-separated lists, strips percentages, and promotes parenthetical
+    sub-ingredients into the flat list (e.g. "sweeteners (aspartame, acesulfame k)"
+    yields ["sweeteners", "aspartame", "acesulfame k"]). Deduplicates while
+    preserving order.
 
     Args:
         text: Raw ingredients text from a product label.
@@ -46,8 +48,10 @@ def _parse_ingredients(text: str) -> list[str]:
     """
     # Remove percentages like "sugar 10%"
     text = re.sub(r"\d+(\.\d+)?\s*%", "", text)
-    # Remove parenthetical content like "lecithin (soy)"
-    text = re.sub(r"\([^)]*\)", "", text)
+    # Promote sub-ingredients inside parentheses into the flat list.
+    # e.g. "sweeteners (aspartame, acesulfame k)" → "sweeteners , aspartame, acesulfame k"
+    # so the subsequent split picks up both the parent label and the sub-ingredients.
+    text = re.sub(r"\(([^)]*)\)", r", \1", text)
     # Split on commas, semicolons, or period-separated lists
     parts = re.split(r"[,;.]", text)
 

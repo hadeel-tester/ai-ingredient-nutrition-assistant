@@ -16,8 +16,8 @@ Stop button design:
 
 from __future__ import annotations
 
+import re
 import threading
-import time
 
 import streamlit as st
 from langchain_chroma import Chroma
@@ -32,6 +32,12 @@ from ui.components import rag_process_expander, tool_result_card
 # ---------------------------------------------------------------------------
 
 _WARNING_MARKER = "⚠️"
+
+# Regex that matches traffic-light colour words at the end of a line, e.g.
+# "Calories: Red" or "Fat: green".  Case-insensitive so the LLM's exact
+# capitalisation doesn't matter.
+_TRAFFIC_RE = re.compile(r"\b(Green|Amber|Red)\b", re.IGNORECASE)
+_TRAFFIC_BADGE: dict[str, str] = {"green": "🟢", "amber": "🟠", "red": "🔴"}
 
 _TOOL_DISPLAY: dict[str, tuple[str, str]] = {
     "lookup_product":               ("🔍", "Open Food Facts"),
@@ -94,16 +100,38 @@ def _run_chain(chain, input_dict: dict, container: dict) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _render_assistant_text(text: str) -> None:
-    """Render assistant response, splitting out ⚠️ lines as st.warning boxes.
+def _badge_traffic_lights(text: str) -> str:
+    """Replace traffic-light colour words with coloured emoji badges.
 
-    The LLM appends a ⚠️ disclaimer when it answers from general knowledge.
-    This function separates the main response from that disclaimer so the
-    yellow warning box is visually distinct from the regular markdown text.
+    Converts occurrences like "Red", "green", "Amber" (case-insensitive) into
+    "🔴 Red", "🟢 green", "🟠 Amber" so the response is visually scannable.
+
+    Args:
+        text: Raw assistant response text.
+
+    Returns:
+        Text with emoji badges prepended to each traffic-light colour word.
+    """
+    def _replace(match: re.Match) -> str:
+        word = match.group(0)
+        badge = _TRAFFIC_BADGE[word.lower()]
+        return f"{badge} {word}"
+
+    return _TRAFFIC_RE.sub(_replace, text)
+
+
+def _render_assistant_text(text: str) -> None:
+    """Render assistant response with traffic-light badges and ⚠️ warnings.
+
+    Two post-processing passes on the LLM's raw text:
+      1. Traffic-light words (Green/Amber/Red) → coloured emoji badges
+      2. ⚠️ general-knowledge disclaimers → st.warning() yellow box
 
     Args:
         text: Full assistant response string.
     """
+    text = _badge_traffic_lights(text)
+
     if _WARNING_MARKER not in text:
         st.markdown(text)
         return
@@ -345,66 +373,61 @@ def render_chat_page(
                 st.markdown(msg["content"])
 
     # -----------------------------------------------------------------------
-    # Polling loop — runs on every rerun while chain is in flight
+    # Polling loop — fragment reruns every 0.4 s without flickering the page
     # -----------------------------------------------------------------------
     if st.session_state.chain_running:
-        prompt = st.session_state.pending_prompt
-        container = st.session_state.chain_result_container
 
-        with st.chat_message("assistant"):
-            status_placeholder = st.empty()
-            stop_placeholder = st.empty()
+        @st.fragment(run_every=0.4)
+        def _thinking_fragment() -> None:
+            """Poll the background thread and rerender only this fragment.
 
-            with status_placeholder.container():
-                st.status("🤖 AI agent is thinking...", expanded=True)
+            Using @st.fragment(run_every=...) means Streamlit reruns only this
+            small block on each tick instead of the full page, which eliminates
+            the visible flicker that the old time.sleep + st.rerun() loop caused.
+            """
+            container = st.session_state.chain_result_container
 
-            if stop_placeholder.button("⏹ Stop", key="stop_btn"):
+            with st.chat_message("assistant"):
+                if container.get("status") == "running":
+                    st.status("🤖 AI agent is thinking...", expanded=True)
+                    if st.button("⏹ Stop", key="stop_btn"):
+                        st.session_state.chain_running = False
+                        st.session_state.chain_cancelled = True
+                        if (st.session_state.messages
+                                and st.session_state.messages[-1]["role"] == "user"):
+                            st.session_state.messages.pop()
+                        st.rerun()
+                    return
+
+                # Thread finished — commit result and trigger a full page rerun
                 st.session_state.chain_running = False
-                st.session_state.chain_cancelled = True
-                # Remove the pending user message we added earlier
-                if (st.session_state.messages
-                        and st.session_state.messages[-1]["role"] == "user"):
-                    st.session_state.messages.pop()
-                status_placeholder.empty()
-                stop_placeholder.empty()
-                st.info("Request cancelled.")
+
+                if container.get("status") == "error":
+                    st.error(f"Error: {container['error']}")
+                    if (st.session_state.messages
+                            and st.session_state.messages[-1]["role"] == "user"):
+                        st.session_state.messages.pop()
+                    st.rerun()
+                    return
+
+                result = container["result"]
+                response_text = result["output"]
+                tools_called = _extract_tools(result.get("intermediate_steps", []))
+                rag_chunks = st.session_state.pending_rag_chunks
+                sources = [c["ingredient"] for c in rag_chunks if c["is_relevant"]]
+
+                assistant_msg: dict = {
+                    "role": "assistant",
+                    "content": response_text,
+                    "sources": sources,
+                    "tools_called": tools_called,
+                    "rag_chunks": rag_chunks,
+                }
+                _render_message(assistant_msg)
+                st.session_state.messages.append(assistant_msg)
                 st.rerun()
-                return
 
-            if container.get("status") == "running":
-                time.sleep(0.4)
-                st.rerun()
-                return
-
-            # Thread completed — clear placeholders and render result
-            status_placeholder.empty()
-            stop_placeholder.empty()
-            st.session_state.chain_running = False
-
-            if container.get("status") == "error":
-                st.error(f"Error: {container['error']}")
-                if (st.session_state.messages
-                        and st.session_state.messages[-1]["role"] == "user"):
-                    st.session_state.messages.pop()
-                st.rerun()
-                return
-
-            result = container["result"]
-            response_text = result["output"]
-            tools_called = _extract_tools(result.get("intermediate_steps", []))
-            rag_chunks = st.session_state.pending_rag_chunks
-            sources = [c["ingredient"] for c in rag_chunks if c["is_relevant"]]
-
-            assistant_msg: dict = {
-                "role": "assistant",
-                "content": response_text,
-                "sources": sources,
-                "tools_called": tools_called,
-                "rag_chunks": rag_chunks,
-            }
-            _render_message(assistant_msg)
-            st.session_state.messages.append(assistant_msg)
-        st.rerun()
+        _thinking_fragment()
 
     # -----------------------------------------------------------------------
     # New prompt handling — chat input or barcode shortcut
