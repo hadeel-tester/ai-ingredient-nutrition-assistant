@@ -16,14 +16,14 @@ High fructose corn syrup (HFCS) is a common sweetener made from corn starch, con
 
 ## Health Risks
 - High consumption associated with obesity, fatty liver disease, and metabolic syndrome due to fructose metabolism in liver. [pmc.ncbi.nlm.nih](https://pmc.ncbi.nlm.nih.gov/articles/PMC12689413/)
-- May increase inflammation markers like CRP compared to sucrose. [pmc.ncbi.nlm.nih](https://pmc.ncbi.nlm.nih.gov/articles/PMC9551185/)
-- Linked to higher triglycerides and insulin resistance in some studies. [health.clevelandclinic](https://health.clevelandclinic.org/what-is-high-fructose-corn-syrup)
-- Potential genotoxic and cytotoxic effects at high concentrations in cell studies. [pubmed.ncbi.nlm.nih](https://pubmed.ncbi.nlm.nih.gov/38347751/)
+- May increase inflammation markers like CRP compared to sucrose. 
+- Linked to higher triglycerides and insulin resistance in some studies. 
+- Potential genotoxic and cytotoxic effects at high concentrations in cell studies. 
 
 ## Health Benefits
 - Cheaper and more stable than sugar for food manufacturing.
 - Provides calories and sweetness similar to table sugar.
-- No evidence of unique benefits over sucrose when consumed equally. [pmc.ncbi.nlm.nih](https://pmc.ncbi.nlm.nih.gov/articles/PMC9551185/)
+- No evidence of unique benefits over sucrose when consumed equally. 
 
 ## Healthier Alternatives
 - Plain sugar (sucrose) in moderation.

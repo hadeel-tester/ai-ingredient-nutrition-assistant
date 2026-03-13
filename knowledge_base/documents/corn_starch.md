@@ -12,10 +12,10 @@ vegan: true
 # Corn Starch
 
 ## Summary
-Corn starch is a fine white powder extracted from the endosperm of corn kernels, used primarily as a thickening agent in sauces, gravies, soups, and baked goods. It creates glossy textures without cloudiness and serves as a gluten-free flour substitute in cooking. While versatile and inexpensive, it offers minimal nutrition beyond rapidly digestible carbohydrates. [healthline](https://www.healthline.com/nutrition/is-cornstarch-bad-for-you)
+Corn starch is a fine white powder extracted from the endosperm of corn kernels, used primarily as a thickening agent in sauces, gravies, soups, and baked goods. It creates glossy textures without cloudiness and serves as a gluten-free flour substitute in cooking. While versatile and inexpensive, it offers minimal nutrition beyond rapidly digestible carbohydrates.
 
 ## Health Risks
-- High glycemic index (around 95) causes rapid blood sugar spikes, problematic for diabetes management or low-carb diets. [listonic](https://listonic.com/p/nutrition/corn-starch)
+- High glycemic index (around 95) causes rapid blood sugar spikes, problematic for diabetes management or low-carb diets. 
 - Refined product lacking fiber, protein, vitamins, and minerals, contributing empty calories. [medicinenet](https://www.medicinenet.com/cornstarch_is_it_healthier_than_flour_safe/article.htm)
 - Large amounts may cause digestive discomfort like bloating or gas in sensitive individuals. [listonic](https://listonic.com/p/nutrition/corn-starch)
 - Common in ultra-processed foods, indirectly linked to poor dietary patterns. [healthline](https://www.healthline.com/nutrition/is-cornstarch-bad-for-you)

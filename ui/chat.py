@@ -154,7 +154,7 @@ def _render_message(msg: dict) -> None:
     if sources:
         with st.expander("📚 Sources from knowledge base", expanded=False):
             for src in sources:
-                st.markdown(f"- **{src.replace('_', ' ').title()}**")
+                st.markdown(f"- {src}")
 
     tools_called: list[dict] = msg.get("tools_called", [])
     if tools_called:
@@ -414,7 +414,14 @@ def render_chat_page(
                 response_text = result["output"]
                 tools_called = _extract_tools(result.get("intermediate_steps", []))
                 rag_chunks = st.session_state.pending_rag_chunks
-                sources = [c["ingredient"] for c in rag_chunks if c["is_relevant"]]
+                seen: set[tuple[str, str]] = set()
+                sources: list[str] = []
+                for c in rag_chunks:
+                    if c["is_relevant"]:
+                        key = (c["ingredient"], c["section"])
+                        if key not in seen:
+                            seen.add(key)
+                            sources.append(f"{c['ingredient']} · {c['section']}")
 
                 assistant_msg: dict = {
                     "role": "assistant",
