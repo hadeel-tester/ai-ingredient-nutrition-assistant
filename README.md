@@ -65,6 +65,9 @@ ai-ingredient-nutrition-assistant/
 │   ├── profile.py              # User profile page
 │   └── knowledge_base.py       # KB browser page
 │
+├── utils/
+│   └── token_tracker.py        # Session-level token usage and cost tracker
+│
 └── tests/                      # pytest suite mirroring the source structure
 ```
 
@@ -140,6 +143,10 @@ When a product is found, the assistant automatically runs all 4 analysis tools i
 ### Profile page
 
 Set your allergens, dietary preferences, health goals, and daily calorie target. The assistant factors these into every response and warns when a product conflicts with your profile.
+
+### Session cost tracking
+
+The sidebar displays a live **💰 Session Cost** panel showing total tokens used and estimated cost (gpt-4o-mini pricing: $0.15/1M input, $0.60/1M output). Click **Reset cost tracker** to zero the counters.
 
 ---
 
