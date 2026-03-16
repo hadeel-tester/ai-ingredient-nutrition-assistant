@@ -181,7 +181,7 @@ def build_chat_chain():
         A LangChain Runnable (LCEL chain wrapping AgentExecutor).
     """
     retriever = get_retriever()
-    llm = ChatOpenAI(model=MODEL_NAME, temperature=0.2, streaming=True)
+    llm = ChatOpenAI(model=MODEL_NAME, temperature=0.2, streaming=True, stream_usage=True)
 
     agent = create_tool_calling_agent(llm, TOOLS, AGENT_PROMPT)
     agent_executor = AgentExecutor(agent=agent, tools=TOOLS, verbose=False,

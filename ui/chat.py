@@ -25,8 +25,11 @@ from langchain_chroma import Chroma
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.retrievers import BaseRetriever
 
+from langchain_community.callbacks import get_openai_callback
+
 from rag.retriever import retrieve_with_scores
 from ui.components import render_nutrition_table, rag_process_expander, tool_result_card
+from utils.token_tracker import get_tracker
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -90,7 +93,12 @@ def _run_chain(chain, input_dict: dict, container: dict) -> None:
         container:  Shared dict; fields set here: status, result, error.
     """
     try:
-        container["result"] = chain.invoke(input_dict)
+        with get_openai_callback() as cb:
+            container["result"] = chain.invoke(input_dict)
+        container["usage"] = {
+            "input_tokens":  cb.prompt_tokens,
+            "output_tokens": cb.completion_tokens,
+        }
         container["status"] = "done"
     except Exception as exc:  # noqa: BLE001 — surface all errors to UI
         container["error"] = str(exc)
@@ -279,6 +287,18 @@ def _render_sidebar() -> None:
         st.caption("The assistant uses these tools on its own — no need to click anything.")
         for icon, name, description in _SIDEBAR_TOOLS:
             st.markdown(f"{icon} **{name}**  \n_{description}_")
+
+        st.divider()
+
+        st.markdown("**💰 Session Cost**")
+        tracker = get_tracker()
+        stats = tracker.get_cost()
+        col1, col2 = st.columns(2)
+        col1.metric("Tokens used", f"{stats['total_tokens']:,}")
+        col2.metric("Est. cost", stats["cost_formatted"])
+        if st.button("Reset cost tracker", use_container_width=True):
+            tracker.reset()
+            st.rerun()
 
         st.divider()
 
@@ -475,6 +495,8 @@ def render_chat_page(
                     "tools_called": tools_called,
                     "rag_chunks": rag_chunks,
                 }
+                if "usage" in container:
+                    get_tracker().record(container["usage"])
                 _render_message(assistant_msg)
                 st.session_state.messages.append(assistant_msg)
                 st.rerun()
