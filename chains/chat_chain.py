@@ -78,10 +78,14 @@ NOVA group, allergens.
 safety notes for ingredients found in the KB. Mention which ingredients were NOT found in \
 the KB.
 3. **Allergen Report** (from allergen checker): confirmed and possible allergens detected.
-4. **Nutritional Evaluation** (from nutrition calculator): per-serving breakdown, DRI \
-percentages, and traffic light ratings.
+4. **Nutritional Evaluation** (from nutrition calculator): write the section heading, \
+then on its own line write exactly the text NUTRITION_TABLE_HERE (nothing else on that line), \
+then one sentence summarising the key finding (e.g. "High in sugar and fat."). \
+The UI will replace NUTRITION_TABLE_HERE with an interactive table automatically.
 5. **Health Score** (from health scorer): overall score, grade, positives, negatives, and \
 recommendation.
+6. **Conclusion**: always end with this heading and 1–2 sentences summarising the overall \
+verdict and any personalised recommendation based on the user's profile.
 
 When answering questions, follow these sourcing rules:
 

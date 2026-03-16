@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 import threading
+import time
 
 import streamlit as st
 from langchain_chroma import Chroma
@@ -25,13 +26,14 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.retrievers import BaseRetriever
 
 from rag.retriever import retrieve_with_scores
-from ui.components import rag_process_expander, tool_result_card
+from ui.components import render_nutrition_table, rag_process_expander, tool_result_card
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
 _WARNING_MARKER = "⚠️"
+_NUTRITION_PLACEHOLDER = "NUTRITION_TABLE_HERE"
 
 # Regex that matches traffic-light colour words at the end of a line, e.g.
 # "Calories: Red" or "Fat: green".  Case-insensitive so the LLM's exact
@@ -145,10 +147,32 @@ def _render_assistant_text(text: str) -> None:
 def _render_message(msg: dict) -> None:
     """Render a single assistant message with all its expanders.
 
+    If the LLM placed NUTRITION_TABLE_HERE in its response, the text is split
+    at that point and the evaluate_nutrition table is injected inline — so the
+    table appears inside the Nutritional Evaluation section, not after the
+    Conclusion. All other tool results stay in the collapsed expander.
+
     Args:
         msg: Message dict from st.session_state.messages.
     """
-    _render_assistant_text(msg["content"])
+    tools_called: list[dict] = msg.get("tools_called", [])
+    nutrition_output: dict | None = next(
+        (t["output"] for t in tools_called if t["name"] == "evaluate_nutrition"),
+        None,
+    )
+
+    content: str = msg["content"]
+    if nutrition_output and _NUTRITION_PLACEHOLDER in content:
+        before, after = content.split(_NUTRITION_PLACEHOLDER, maxsplit=1)
+        _render_assistant_text(before.rstrip())
+        render_nutrition_table(nutrition_output)
+        if after.strip():
+            _render_assistant_text(after.lstrip())
+    else:
+        _render_assistant_text(content)
+        # Fallback: table not placed by LLM — render it after the text
+        if nutrition_output:
+            render_nutrition_table(nutrition_output)
 
     sources: list[str] = msg.get("sources", [])
     if sources:
@@ -156,10 +180,11 @@ def _render_message(msg: dict) -> None:
             for src in sources:
                 st.markdown(f"- {src}")
 
-    tools_called: list[dict] = msg.get("tools_called", [])
-    if tools_called:
-        with st.expander(f"🔧 Tools used ({len(tools_called)})", expanded=False):
-            for tool in tools_called:
+    # Other tools in the expander (evaluate_nutrition already shown inline)
+    other_tools = [t for t in tools_called if t["name"] != "evaluate_nutrition"]
+    if other_tools:
+        with st.expander(f"🔧 Tools used ({len(other_tools)})", expanded=False):
+            for tool in other_tools:
                 icon, display_name = _TOOL_DISPLAY.get(
                     tool["name"], ("🔧", tool["name"])
                 )
@@ -316,6 +341,7 @@ def _start_chain(
     st.session_state.chain_cancelled = False
     st.session_state.chain_result_container = container
     st.session_state.chain_thread = thread
+    st.session_state.chain_start_time = time.monotonic()
     st.session_state.pending_prompt = prompt
     st.session_state.pending_rag_chunks = rag_chunks
 
@@ -355,6 +381,7 @@ def render_chat_page(
         ("pending_prompt", ""),
         ("pending_rag_chunks", []),
         ("barcode_query", ""),
+        ("chain_start_time", 0.0),
     ]:
         if key not in st.session_state:
             st.session_state[key] = default
@@ -389,7 +416,18 @@ def render_chat_page(
 
             with st.chat_message("assistant"):
                 if container.get("status") == "running":
-                    st.status("🤖 AI agent is thinking...", expanded=True)
+                    elapsed = time.monotonic() - st.session_state.get(
+                        "chain_start_time", time.monotonic()
+                    )
+                    elapsed_int = int(elapsed)
+                    if elapsed_int > 30:
+                        label = (
+                            f"🤖 Still working... ({elapsed_int}s) — "
+                            "waiting for external API response"
+                        )
+                    else:
+                        label = f"🤖 AI agent is thinking... ({elapsed_int}s)"
+                    st.status(label, expanded=True)
                     if st.button("⏹ Stop", key="stop_btn"):
                         st.session_state.chain_running = False
                         st.session_state.chain_cancelled = True
@@ -403,10 +441,17 @@ def render_chat_page(
                 st.session_state.chain_running = False
 
                 if container.get("status") == "error":
-                    st.error(f"Error: {container['error']}")
-                    if (st.session_state.messages
-                            and st.session_state.messages[-1]["role"] == "user"):
-                        st.session_state.messages.pop()
+                    error_text = container["error"]
+                    # Persist error as an assistant message so it survives st.rerun().
+                    # Keep the user message so they see what they asked.
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": (
+                            f"Sorry, something went wrong while processing your "
+                            f"request:\n\n**{error_text}**\n\n"
+                            "Please try again."
+                        ),
+                    })
                     st.rerun()
                     return
 

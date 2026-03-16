@@ -25,7 +25,7 @@ _NUTRIENT_UNITS: dict[str, str] = {
 }
 
 
-def _render_nutrition_table(result: dict) -> None:
+def render_nutrition_table(result: dict) -> None:
     """Render evaluate_nutrition output as a 4-column table (per 100g).
 
     Back-calculates per-100g values from per_serving ÷ serving_size_g × 100,
@@ -91,7 +91,7 @@ def tool_result_card(tool_name: str, result: dict) -> None:
         if (traffic_lights and isinstance(traffic_lights, dict)
                 and "per_serving" in result and "dri_percent" in result):
             # evaluate_nutrition output — render as table
-            _render_nutrition_table(result)
+            render_nutrition_table(result)
         elif traffic_lights and isinstance(traffic_lights, dict):
             # Other tools with traffic lights — JSON + badge fallback
             rest = {k: v for k, v in result.items() if k != "traffic_lights"}

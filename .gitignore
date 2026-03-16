@@ -29,6 +29,7 @@ chroma_db/
 # IDEs
 .vscode/
 .idea/
+.cursorrules
 *.swp
 *.swo
 

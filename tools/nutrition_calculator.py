@@ -60,7 +60,7 @@ class NutritionInput(BaseModel):
 
     calories_per_100g: float = Field(ge=0, description="Energy in kcal per 100g.")
     fat_per_100g: float = Field(ge=0, description="Total fat in g per 100g.")
-    saturated_fat_per_100g: float = Field(ge=0, description="Saturated fat in g per 100g.")
+    saturated_fat_per_100g: float = Field(ge=0, default=0.0, description="Saturated fat in g per 100g.")
     sugar_per_100g: float = Field(ge=0, description="Total sugars in g per 100g.")
     protein_per_100g: float = Field(ge=0, description="Protein in g per 100g.")
     salt_per_100g: float = Field(ge=0, description="Salt in g per 100g.")
