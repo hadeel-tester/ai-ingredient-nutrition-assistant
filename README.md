@@ -15,6 +15,7 @@ Ask about any food product by name or barcode and get a full breakdown: ingredie
 - **User profile personalisation** — allergens, dietary preferences, health goals, calorie target
 - **RAG pipeline** — ChromaDB vector store with query relevance filtering
 - **Source citations** — every response shows which KB documents were used
+- **Session cost tracking** — live token usage and estimated cost displayed in sidebar
 
 ---
 
