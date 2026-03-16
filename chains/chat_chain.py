@@ -63,7 +63,8 @@ follow-up calls, not optional:
 2. check_allergens — pass the same "ingredients" string from the lookup result.
 3. evaluate_nutrition — pass the nutriment values from the lookup result \
    (calories_per_100g, fat_per_100g, sugar_per_100g, protein_per_100g, salt_per_100g). \
-   Set saturated_fat_per_100g and fibre_per_100g to 0 if not available.
+   Set saturated_fat_per_100g and fibre_per_100g to 0 if not available. \
+   If the user profile contains a daily calorie target, pass it as calorie_target.
 4. score_health — pass the "ingredients" string and the same nutriment values \
    (calories_per_100g, fat_per_100g, sugar_per_100g, protein_per_100g, salt_per_100g). \
    Set saturated_fat_per_100g and fibre_per_100g to 0 if not available.

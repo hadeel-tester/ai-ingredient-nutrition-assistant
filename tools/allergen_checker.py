@@ -310,7 +310,7 @@ def check_allergens(ingredients: str) -> dict[str, list[str] | str]:
           - 'possible': list of uncertain allergens (verify original label)
           - 'message': human-readable warning or safe confirmation
     """
-    text = ingredients.lower()
+    text = ingredients.lower().replace("gluten-free", "glutenfree")
 
     detected: list[str] = [
         allergen

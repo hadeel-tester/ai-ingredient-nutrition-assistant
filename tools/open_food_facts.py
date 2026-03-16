@@ -6,6 +6,10 @@ structured nutrition data: macros, allergens, Nutri-Score grade, and NOVA group.
 No API key required. Uses the requests library with a 60-second timeout.
 All extracted fields use .get() with a 'not available' fallback so the returned
 dict never contains None — safe to display and pass to the LLM without null-checks.
+
+Retry strategy: transient network failures (Timeout, ConnectionError) are retried
+up to 3 times with exponential backoff (1 s, 2 s). HTTP errors and "not found"
+responses are not retried — they reflect the actual state of the API.
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ import requests
 from urllib.parse import quote
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 _OFF_BARCODE_URL = "https://world.openfoodfacts.org/api/v2/product/{barcode}.json"
 _OFF_SEARCH_URL = (
@@ -23,8 +28,40 @@ _OFF_SEARCH_URL = (
     "&fields=product_name,product_name_en,ingredients_text,ingredients_text_en"
     ",allergens_tags,nutriments,nutriscore_grade,nova_group"
 )
-_REQUEST_TIMEOUT = 60  # seconds — name search endpoint is slow
+_REQUEST_TIMEOUT = 30  # seconds per attempt — retried up to 3 times on timeout
 _NA = "not available"  # fallback for any missing field
+
+# Retry only transient network failures (timeout / connection drop).
+# HTTP errors (4xx/5xx) and "product not found" are not retried — they are
+# deterministic responses from the server, not transient failures.
+_RETRYABLE = (requests.exceptions.Timeout, requests.exceptions.ConnectionError)
+
+
+@retry(
+    retry=retry_if_exception_type(_RETRYABLE),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=4),
+    reraise=True,
+)
+def _get(url: str) -> requests.Response:
+    """Perform a GET request with automatic retry on transient network errors.
+
+    Retried up to 3 times with exponential backoff (1 s, 2 s, capped at 4 s).
+    Only Timeout and ConnectionError trigger a retry; all other exceptions
+    (including HTTP errors) propagate immediately.
+
+    Args:
+        url: Fully-formed request URL.
+
+    Returns:
+        requests.Response on success.
+
+    Raises:
+        requests.exceptions.Timeout: After all retry attempts are exhausted.
+        requests.exceptions.ConnectionError: After all retry attempts are exhausted.
+        requests.exceptions.RequestException: Immediately for non-retryable errors.
+    """
+    return requests.get(url, timeout=_REQUEST_TIMEOUT)
 
 
 def _best_match(products: list[dict], query: str) -> dict:
@@ -143,7 +180,7 @@ def lookup_product(query: str) -> dict:
     try:
         if _is_barcode(query):
             url = _OFF_BARCODE_URL.format(barcode=query.strip())
-            response = requests.get(url, timeout=_REQUEST_TIMEOUT)
+            response = _get(url)
 
             if response.status_code != 200:
                 return {"error": f"Unexpected HTTP {response.status_code} from API."}
@@ -156,7 +193,7 @@ def lookup_product(query: str) -> dict:
 
         else:
             url = _OFF_SEARCH_URL.format(name=quote(query.strip()))
-            response = requests.get(url, timeout=_REQUEST_TIMEOUT)
+            response = _get(url)
 
             if response.status_code != 200:
                 return {"error": f"Unexpected HTTP {response.status_code} from API."}
@@ -169,6 +206,8 @@ def lookup_product(query: str) -> dict:
             return _extract_product(_best_match(products, query))
 
     except requests.exceptions.Timeout:
-        return {"error": f"Request timed out after {_REQUEST_TIMEOUT} s."}
+        return {"error": f"Request timed out after {_REQUEST_TIMEOUT} s (after retries)."}
+    except requests.exceptions.ConnectionError as exc:
+        return {"error": f"Connection failed after retries: {exc}"}
     except requests.exceptions.RequestException as exc:
         return {"error": f"API request failed: {exc}"}

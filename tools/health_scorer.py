@@ -251,7 +251,7 @@ def score_health(
         score += 10
         positives.append(f"short ingredient list ({ingredient_count} ingredients)")
 
-    if not e_numbers:
+    if not e_numbers and not controversial:
         score += 8
         positives.append("no food additives detected")
 

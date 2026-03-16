@@ -68,11 +68,47 @@ class NutritionInput(BaseModel):
     serving_size_g: float = Field(
         gt=0, default=100.0, description="Serving size in grams (defaults to 100g)."
     )
+    calorie_target: float | None = Field(
+        default=None,
+        description=(
+            "User's daily calorie target in kcal from their profile. "
+            "Pass this if the user profile contains a calorie_target. "
+            "Scales DRI percentages to the user's personal intake goal "
+            "instead of the standard 2000 kcal EU reference."
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
+
+
+def _effective_dri(calorie_target: float | None) -> dict[str, float]:
+    """Return DRI reference values scaled to calorie_target, or EU_DRI if not set.
+
+    Calories, fat, saturated_fat, sugar, protein, and salt are scaled
+    proportionally to the ratio of calorie_target to the 2000 kcal EU default.
+    Fibre is held fixed at 25g — it is not calorie-dependent.
+
+    Args:
+        calorie_target: User's daily calorie goal in kcal, or None for EU default.
+
+    Returns:
+        Dict with the same keys as EU_DRI, scaled to the target.
+    """
+    if not calorie_target or calorie_target == EU_DRI["calories"]:
+        return EU_DRI
+    ratio = calorie_target / EU_DRI["calories"]
+    return {
+        "calories":      calorie_target,
+        "fat":           round(EU_DRI["fat"]           * ratio, 1),
+        "saturated_fat": round(EU_DRI["saturated_fat"] * ratio, 1),
+        "sugar":         round(EU_DRI["sugar"]         * ratio, 1),
+        "protein":       round(EU_DRI["protein"]       * ratio, 1),
+        "salt":          round(EU_DRI["salt"]          * ratio, 1),
+        "fibre":         EU_DRI["fibre"],  # not calorie-dependent
+    }
 
 
 def _traffic_light(nutrient: str, value: float, dri_pct: float) -> str:
@@ -173,6 +209,7 @@ def evaluate_nutrition(
     salt_per_100g: float,
     fibre_per_100g: float = 0.0,
     serving_size_g: float = 100.0,
+    calorie_target: float | None = None,
 ) -> dict:
     """Evaluate the nutritional quality of a food product per serving.
 
@@ -191,15 +228,19 @@ def evaluate_nutrition(
         salt_per_100g:          Salt in g per 100g.
         fibre_per_100g:         Dietary fibre in g per 100g (default 0).
         serving_size_g:         Serving size in grams (default 100).
+        calorie_target:         User's daily calorie goal in kcal. If provided,
+                                DRI percentages are scaled to this target instead
+                                of the standard 2000 kcal EU reference.
 
     Returns:
         Dict with keys:
           - serving_size_g: the serving size used
           - per_serving: per-serving amounts for each nutrient
-          - dri_percent: % of EU daily reference intake per serving
+          - dri_percent: % of daily reference intake per serving
           - traffic_lights: green/amber/red rating per nutrient
           - overall: overall rating (excellent/good/moderate/poor)
           - summary: human-readable assessment sentence
+          - reference: DRI reference used (EU DRI or user profile)
     """
     ratio = serving_size_g / 100.0
 
@@ -218,8 +259,9 @@ def evaluate_nutrition(
         for nutrient, value in raw_per_100g.items()
     }
 
+    effective_dri = _effective_dri(calorie_target)
     dri_percent: dict[str, float] = {
-        nutrient: round((per_serving[nutrient] / EU_DRI[nutrient]) * 100, 1)
+        nutrient: round((per_serving[nutrient] / effective_dri[nutrient]) * 100, 1)
         for nutrient in per_serving
     }
 
@@ -231,6 +273,12 @@ def evaluate_nutrition(
     overall = _overall_rating(traffic_lights)
     summary = _build_summary(overall, traffic_lights)
 
+    reference = (
+        f"User profile ({int(calorie_target)} kcal)"
+        if calorie_target and calorie_target != EU_DRI["calories"]
+        else "EU DRI (2000 kcal)"
+    )
+
     return {
         "serving_size_g":  serving_size_g,
         "per_serving":     per_serving,
@@ -238,4 +286,5 @@ def evaluate_nutrition(
         "traffic_lights":  traffic_lights,
         "overall":         overall,
         "summary":         summary,
+        "reference":       reference,
     }

@@ -14,6 +14,55 @@ _TRAFFIC_LIGHT_BADGE: dict[str, str] = {
     "red":   "🔴",
 }
 
+_NUTRIENT_UNITS: dict[str, str] = {
+    "calories":      "Calories (kcal)",
+    "fat":           "Fat (g)",
+    "saturated_fat": "Saturated fat (g)",
+    "sugar":         "Sugar (g)",
+    "protein":       "Protein (g)",
+    "salt":          "Salt (g)",
+    "fibre":         "Fibre (g)",
+}
+
+
+def _render_nutrition_table(result: dict) -> None:
+    """Render evaluate_nutrition output as a 4-column table (per 100g).
+
+    Back-calculates per-100g values from per_serving ÷ serving_size_g × 100,
+    then builds a markdown table with Nutrient | Per 100g | % Daily Intake | Rating.
+
+    Args:
+        result: Dict returned by evaluate_nutrition(), containing per_serving,
+                dri_percent, traffic_lights, serving_size_g, overall, summary.
+    """
+    serving_size_g: float = result.get("serving_size_g", 0)
+    if not serving_size_g:
+        st.json(result)
+        return
+
+    per_serving: dict[str, float] = result.get("per_serving", {})
+    dri_percent: dict[str, float] = result.get("dri_percent", {})
+    traffic_lights: dict[str, str] = result.get("traffic_lights", {})
+
+    rows = ["| Nutrient | Per 100g | % Daily Intake | Rating |",
+            "|---|---|---|---|"]
+    for key, label in _NUTRIENT_UNITS.items():
+        value = per_serving.get(key, 0)
+        per_100g = round(value / serving_size_g * 100, 1)
+        dri = dri_percent.get(key, 0)
+        colour = traffic_lights.get(key, "")
+        badge = _TRAFFIC_LIGHT_BADGE.get(colour, "⚪")
+        rows.append(f"| {label} | {per_100g} | {dri}% | {badge} |")
+
+    st.markdown("\n".join(rows))
+    reference = result.get("reference", "")
+    if reference and not reference.startswith("EU DRI"):
+        st.caption(f"📊 DRI% calculated using: {reference}")
+    st.caption(
+        f"**Overall: {result.get('overall', '—').capitalize()}** — "
+        f"{result.get('summary', '')}"
+    )
+
 
 def _render_traffic_lights(traffic_lights: dict[str, str]) -> None:
     """Render a traffic_lights dict as coloured emoji badges.
@@ -39,8 +88,12 @@ def tool_result_card(tool_name: str, result: dict) -> None:
     """
     with st.expander(f"Result — {tool_name}", expanded=True):
         traffic_lights: dict[str, str] | None = result.get("traffic_lights")
-        if traffic_lights and isinstance(traffic_lights, dict):
-            # Render everything except traffic_lights as JSON, then badges below
+        if (traffic_lights and isinstance(traffic_lights, dict)
+                and "per_serving" in result and "dri_percent" in result):
+            # evaluate_nutrition output — render as table
+            _render_nutrition_table(result)
+        elif traffic_lights and isinstance(traffic_lights, dict):
+            # Other tools with traffic lights — JSON + badge fallback
             rest = {k: v for k, v in result.items() if k != "traffic_lights"}
             if rest:
                 st.json(rest)
