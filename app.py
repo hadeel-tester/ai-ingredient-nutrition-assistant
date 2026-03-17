@@ -24,26 +24,6 @@ st.set_page_config(
 )
 
 
-def _ensure_kb_built() -> None:
-    """Wipe any existing ChromaDB directory and rebuild from source documents.
-
-    Always rebuilds to avoid startup failures caused by a partially-written
-    or schema-incompatible database left in /tmp on Streamlit Cloud.
-    """
-    import os
-    import shutil
-    from knowledge_base.build_kb import main as build_kb
-
-    _IS_STREAMLIT_CLOUD = os.path.exists('/mount/src')
-    chroma_dir = '/tmp/chroma_db' if _IS_STREAMLIT_CLOUD else os.path.join(
-        os.path.dirname(__file__), 'knowledge_base', 'data', 'chroma_db'
-    )
-    if os.path.exists(chroma_dir):
-        shutil.rmtree(chroma_dir)
-    with st.spinner('Building knowledge base — first-time setup, ~30 seconds...'):
-        build_kb()
-
-
 @st.cache_resource(show_spinner="Loading NutriMind — connecting to knowledge base...")
 def _load_resources():
     """Load the chain and vectorstore once per app session.
@@ -51,17 +31,27 @@ def _load_resources():
     st.cache_resource persists the return value across all reruns (button
     clicks, new messages) so ChromaDB and the LLM client are initialised only
     once, not on every Streamlit interaction.
+
+    Both get_vectorstore() and build_kb() are called inside this cached
+    function so they share the same _chroma_client singleton from
+    rag.vectorstore. Calling build_kb() outside this scope (e.g. via a
+    separate _ensure_kb_built()) would create the EphemeralClient in a
+    different execution context, leaving the vectorstore pointing at an
+    empty in-memory instance on Streamlit Cloud.
     """
     from chains.chat_chain import build_chat_chain
     from rag.vectorstore import get_vectorstore
+    from knowledge_base.build_kb import main as build_kb
 
     chain = build_chat_chain()
     vectorstore = get_vectorstore()
+    if vectorstore._collection.count() == 0:
+        with st.spinner('Building knowledge base — first-time setup, ~30 seconds...'):
+            build_kb()
     retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
     return chain, vectorstore, retriever
 
 
-_ensure_kb_built()
 chain, vectorstore, retriever = _load_resources()
 
 # Load profile on every run (uncached) so it always reflects the latest save.
