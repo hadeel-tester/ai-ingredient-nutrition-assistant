@@ -30,12 +30,11 @@ from langchain_openai import OpenAIEmbeddings
 load_dotenv()
 
 DOCUMENTS_DIR: Path = Path(__file__).parent / "documents"
-CHROMA_PERSIST_DIR: Path = Path(
-    os.environ.get(
-        "CHROMA_PERSIST_DIR",
-        "/tmp/chroma_db" if os.path.exists("/tmp") else "./knowledge_base/data/chroma_db",
-    )
-).resolve()
+_IS_STREAMLIT_CLOUD = os.path.exists('/mount/src')
+CHROMA_PERSIST_DIR = '/tmp/chroma_db' if _IS_STREAMLIT_CLOUD else os.path.join(
+    os.path.dirname(__file__), '..', 'knowledge_base', 'data', 'chroma_db'
+)
+print(f"[build_kb] CHROMA_PERSIST_DIR = {CHROMA_PERSIST_DIR}")
 COLLECTION_NAME: str = "nutrition_kb"
 EMBEDDING_MODEL: str = "text-embedding-3-small"
 
@@ -202,13 +201,13 @@ def main() -> None:
 
     print()
     print(f"Embedding {len(docs)} chunks with {EMBEDDING_MODEL}...")
-    build_chroma(docs, CHROMA_PERSIST_DIR)
+    build_chroma(docs, Path(CHROMA_PERSIST_DIR))
 
     print()
     print("Done.")
     print(f"  Files loaded:   {file_count}")
     print(f"  Chunks created: {len(docs)}")
-    print(f"  ChromaDB saved to: {CHROMA_PERSIST_DIR.resolve()}")
+    print(f"  ChromaDB saved to: {Path(CHROMA_PERSIST_DIR).resolve()}")
 
 
 if __name__ == "__main__":

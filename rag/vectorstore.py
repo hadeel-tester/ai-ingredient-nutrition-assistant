@@ -13,10 +13,11 @@ from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 
 
-CHROMA_PERSIST_DIR: str = os.environ.get(
-    "CHROMA_PERSIST_DIR",
-    "/tmp/chroma_db" if os.path.exists("/tmp") else "./knowledge_base/data/chroma_db",
+_IS_STREAMLIT_CLOUD = os.path.exists('/mount/src')
+CHROMA_PERSIST_DIR = '/tmp/chroma_db' if _IS_STREAMLIT_CLOUD else os.path.join(
+    os.path.dirname(__file__), '..', 'knowledge_base', 'data', 'chroma_db'
 )
+print(f"[vectorstore] CHROMA_PERSIST_DIR = {CHROMA_PERSIST_DIR}")
 COLLECTION_NAME: str = "nutrition_kb"
 
 
