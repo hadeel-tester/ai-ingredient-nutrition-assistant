@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
 import yaml
 from pathlib import Path
 
@@ -26,6 +25,7 @@ from dotenv import load_dotenv
 from langchain_core.documents import Document
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
+from rag.vectorstore import get_chroma_client
 
 load_dotenv()
 
@@ -160,15 +160,15 @@ def load_md_files(documents_dir: Path) -> tuple[list[Document], int]:
     return all_documents, file_count
 
 
-def build_chroma(docs: list[Document], persist_dir: Path) -> None:
-    """Embed documents and persist them to a local ChromaDB collection.
+def build_chroma(docs: list[Document]) -> None:
+    """Embed documents and load them into the shared ChromaDB client.
 
-    This function is idempotent: if the persist directory already exists it is
-    removed and recreated, so running the script again never duplicates chunks.
+    Uses the singleton client from rag.vectorstore — EphemeralClient on
+    Streamlit Cloud, PersistentClient locally. Drops and recreates the
+    collection each run so the script stays idempotent.
 
     Args:
         docs: List of Document chunks to embed and store.
-        persist_dir: Filesystem path where ChromaDB will write its data files.
 
     Raises:
         RuntimeError: If docs is empty (nothing to embed).
@@ -176,9 +176,11 @@ def build_chroma(docs: list[Document], persist_dir: Path) -> None:
     if not docs:
         raise RuntimeError("No documents to embed. Check that documents/ contains valid .md files.")
 
-    if persist_dir.exists():
-        shutil.rmtree(persist_dir)
-    persist_dir.mkdir(parents=True, exist_ok=True)
+    client = get_chroma_client()
+    try:
+        client.delete_collection(COLLECTION_NAME)
+    except ValueError:
+        pass  # collection does not exist yet — fine
 
     embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
 
@@ -186,28 +188,29 @@ def build_chroma(docs: list[Document], persist_dir: Path) -> None:
         documents=docs,
         embedding=embeddings,
         collection_name=COLLECTION_NAME,
-        persist_directory=str(persist_dir),
+        client=client,
     )
 
 
 def main() -> None:
     """Entry point — orchestrate the full knowledge base build."""
+    destination = "[in-memory / EphemeralClient]" if _IS_STREAMLIT_CLOUD else str(Path(CHROMA_PERSIST_DIR).resolve())
     print("Building knowledge base...")
     print(f"  Source: {DOCUMENTS_DIR}")
-    print(f"  Destination: {CHROMA_PERSIST_DIR}")
+    print(f"  Destination: {destination}")
     print()
 
     docs, file_count = load_md_files(DOCUMENTS_DIR)
 
     print()
     print(f"Embedding {len(docs)} chunks with {EMBEDDING_MODEL}...")
-    build_chroma(docs, Path(CHROMA_PERSIST_DIR))
+    build_chroma(docs)
 
     print()
     print("Done.")
     print(f"  Files loaded:   {file_count}")
     print(f"  Chunks created: {len(docs)}")
-    print(f"  ChromaDB saved to: {Path(CHROMA_PERSIST_DIR).resolve()}")
+    print(f"  ChromaDB: {destination}")
 
 
 if __name__ == "__main__":
