@@ -179,7 +179,7 @@ def build_chroma(docs: list[Document]) -> None:
     client = get_chroma_client()
     try:
         client.delete_collection(COLLECTION_NAME)
-    except ValueError:
+    except Exception:
         pass  # collection does not exist yet — fine
 
     embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
