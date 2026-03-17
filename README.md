@@ -3,6 +3,8 @@
 An AI-powered food product analysis chatbot built with LangChain, RAG, and Streamlit.
 Ask about any food product by name or barcode and get a full breakdown: ingredient health risks, EU allergens, nutritional evaluation, and an overall health score — all personalised to your dietary profile.
 
+**Live demo:** [ai-ingredient-nutrition-assistant.streamlit.app](https://ai-ingredient-nutrition-assistant.streamlit.app/)
+
 ---
 
 ## Features
