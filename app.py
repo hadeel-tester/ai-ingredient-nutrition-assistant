@@ -25,18 +25,21 @@ st.set_page_config(
 
 
 def _ensure_kb_built() -> None:
-    """Build ChromaDB from markdown files if the collection is empty or missing.
+    """Build ChromaDB from markdown files if the directory is absent or empty.
 
-    Runs automatically on first boot (e.g. Streamlit Cloud) where chroma_db/
-    is not committed to the repo. Skipped on subsequent runs once the collection
-    has documents.
+    Uses a filesystem check instead of opening ChromaDB so there is no lock
+    conflict when build_kb() subsequently writes to the same directory.
     """
+    import os
     from knowledge_base.build_kb import main as build_kb
-    from rag.vectorstore import get_vectorstore
 
-    vs = get_vectorstore()
-    if vs._collection.count() == 0:
-        with st.spinner("Building knowledge base — this takes about 30 seconds on first boot..."):
+    _IS_STREAMLIT_CLOUD = os.path.exists('/mount/src')
+    chroma_dir = '/tmp/chroma_db' if _IS_STREAMLIT_CLOUD else os.path.join(
+        os.path.dirname(__file__), 'knowledge_base', 'data', 'chroma_db'
+    )
+    chroma_exists = os.path.exists(chroma_dir) and len(os.listdir(chroma_dir)) > 0
+    if not chroma_exists:
+        with st.spinner('Building knowledge base — first-time setup, ~30 seconds...'):
             build_kb()
 
 
