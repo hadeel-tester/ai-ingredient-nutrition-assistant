@@ -24,6 +24,22 @@ st.set_page_config(
 )
 
 
+def _ensure_kb_built() -> None:
+    """Build ChromaDB from markdown files if the collection is empty or missing.
+
+    Runs automatically on first boot (e.g. Streamlit Cloud) where chroma_db/
+    is not committed to the repo. Skipped on subsequent runs once the collection
+    has documents.
+    """
+    from knowledge_base.build_kb import main as build_kb
+    from rag.vectorstore import get_vectorstore
+
+    vs = get_vectorstore()
+    if vs._collection.count() == 0:
+        with st.spinner("Building knowledge base — this takes about 30 seconds on first boot..."):
+            build_kb()
+
+
 @st.cache_resource(show_spinner="Loading NutriMind — connecting to knowledge base...")
 def _load_resources():
     """Load the chain and vectorstore once per app session.
@@ -41,6 +57,7 @@ def _load_resources():
     return chain, vectorstore, retriever
 
 
+_ensure_kb_built()
 chain, vectorstore, retriever = _load_resources()
 
 # Load profile on every run (uncached) so it always reflects the latest save.

@@ -30,8 +30,12 @@ chroma_db/
 .vscode/
 .idea/
 .cursorrules
+.cursorrules.md
 *.swp
 *.swo
+
+# Claude Code / Cursor context files
+CLAUDE.md
 
 # OS
 .DS_Store
