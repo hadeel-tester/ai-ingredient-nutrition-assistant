@@ -44,6 +44,9 @@ _NUTRITION_PLACEHOLDER = "NUTRITION_TABLE_HERE"
 _TRAFFIC_RE = re.compile(r"\b(Green|Amber|Red)\b", re.IGNORECASE)
 _TRAFFIC_BADGE: dict[str, str] = {"green": "🟢", "amber": "🟠", "red": "🔴"}
 
+_COOLDOWN_SECONDS: int = 3       # minimum gap between submissions
+_MAX_REQUESTS: int = 50          # per-session hard cap
+
 _TOOL_DISPLAY: dict[str, tuple[str, str]] = {
     "lookup_product":               ("🔍", "Open Food Facts"),
     "analyze_product_ingredients":  ("🧬", "Ingredient Analyzer"),
@@ -283,20 +286,18 @@ def _render_sidebar() -> None:
 
         st.divider()
 
-        st.markdown("**AI tools** _(run automatically from chat)_")
-        st.caption("The assistant uses these tools on its own — no need to click anything.")
-        for icon, name, description in _SIDEBAR_TOOLS:
-            st.markdown(f"{icon} **{name}**  \n_{description}_")
+        with st.expander("🔧 AI tools _(run automatically)_", expanded=False):
+            st.caption("The assistant uses these tools on its own.")
+            for icon, name, description in _SIDEBAR_TOOLS:
+                st.markdown(f"{icon} **{name}**  \n_{description}_")
 
         st.divider()
 
-        st.markdown("**💰 Session Cost**")
         tracker = get_tracker()
         stats = tracker.get_cost()
-        col1, col2 = st.columns(2)
-        col1.metric("Tokens used", f"{stats['total_tokens']:,}")
-        col2.metric("Est. cost", stats["cost_formatted"])
-        if st.button("Reset cost tracker", use_container_width=True):
+        _c1, _c2 = st.columns([3, 1])
+        _c1.markdown(f"💰 **{stats['total_tokens']:,}** tokens · **{stats['cost_formatted']}**")
+        if _c2.button("↺", key="reset_tracker", help="Reset cost tracker"):
             tracker.reset()
             st.rerun()
 
@@ -402,6 +403,8 @@ def render_chat_page(
         ("pending_rag_chunks", []),
         ("barcode_query", ""),
         ("chain_start_time", 0.0),
+        ("last_request_time", 0.0),
+        ("request_count", 0),
     ]:
         if key not in st.session_state:
             st.session_state[key] = default
@@ -454,7 +457,7 @@ def render_chat_page(
                         if (st.session_state.messages
                                 and st.session_state.messages[-1]["role"] == "user"):
                             st.session_state.messages.pop()
-                        st.rerun()
+                        st.rerun(scope="app")
                     return
 
                 # Thread finished — commit result and trigger a full page rerun
@@ -472,7 +475,7 @@ def render_chat_page(
                             "Please try again."
                         ),
                     })
-                    st.rerun()
+                    st.rerun(scope="app")
                     return
 
                 result = container["result"]
@@ -499,7 +502,7 @@ def render_chat_page(
                     get_tracker().record(container["usage"])
                 _render_message(assistant_msg)
                 st.session_state.messages.append(assistant_msg)
-                st.rerun()
+                st.rerun(scope="app")
 
         _thinking_fragment()
 
@@ -521,6 +524,24 @@ def render_chat_page(
         prompt = chat_prompt
 
     if prompt:
+        # --- Rate limiting ---
+        if st.session_state.request_count >= _MAX_REQUESTS:
+            st.error(
+                f"Session limit reached ({_MAX_REQUESTS} requests). "
+                "Refresh the page to start a new session."
+            )
+            st.stop()
+
+        elapsed_since_last = time.time() - st.session_state.last_request_time
+        if elapsed_since_last < _COOLDOWN_SECONDS:
+            wait = int(_COOLDOWN_SECONDS - elapsed_since_last) + 1
+            st.warning(f"Please wait {wait}s before sending another message.")
+            st.stop()
+
+        st.session_state.last_request_time = time.time()
+        st.session_state.request_count += 1
+        # ---------------------
+
         # Show user message
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):

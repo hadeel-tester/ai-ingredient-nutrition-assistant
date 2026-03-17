@@ -16,6 +16,7 @@ Ask about any food product by name or barcode and get a full breakdown: ingredie
 - **RAG pipeline** — ChromaDB vector store with query relevance filtering
 - **Source citations** — every response shows which KB documents were used
 - **Session cost tracking** — live token usage and estimated cost displayed in sidebar
+- **Rate limiting** — 3-second cooldown between requests and a 20-request session cap to protect API quotas
 
 ---
 
@@ -201,6 +202,19 @@ python -m knowledge_base.build_kb
 |---|---|---|
 | `OPENAI_API_KEY` | Yes | OpenAI API key for LLM and embeddings |
 | `CHROMA_PERSIST_DIR` | No | ChromaDB path (default: `./chroma_db`) |
+
+---
+
+## Rate Limiting
+
+The app enforces two session-level guards (configurable via constants in `ui/chat.py`):
+
+| Limit | Default | Purpose |
+|---|---|---|
+| Cooldown | 3 seconds | Prevents rapid-fire double submissions |
+| Session cap | 50 requests | Protects OpenAI quota during demos |
+
+When either limit is hit, the UI shows an inline warning instead of dispatching the chain. Refresh the page to reset both counters. For production deployments, replace session state with a shared backend store (Redis, etc.).
 
 ---
 
