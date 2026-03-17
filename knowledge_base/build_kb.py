@@ -33,7 +33,7 @@ DOCUMENTS_DIR: Path = Path(__file__).parent / "documents"
 CHROMA_PERSIST_DIR: Path = Path(
     os.environ.get(
         "CHROMA_PERSIST_DIR",
-        "/tmp/chroma_db" if os.path.exists("/tmp") else "./chroma_db",
+        "/tmp/chroma_db" if os.path.exists("/tmp") else "./knowledge_base/data/chroma_db",
     )
 ).resolve()
 COLLECTION_NAME: str = "nutrition_kb"

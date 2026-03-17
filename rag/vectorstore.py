@@ -15,7 +15,7 @@ from langchain_openai import OpenAIEmbeddings
 
 CHROMA_PERSIST_DIR: str = os.environ.get(
     "CHROMA_PERSIST_DIR",
-    "/tmp/chroma_db" if os.path.exists("/tmp") else "./chroma_db",
+    "/tmp/chroma_db" if os.path.exists("/tmp") else "./knowledge_base/data/chroma_db",
 )
 COLLECTION_NAME: str = "nutrition_kb"
 
