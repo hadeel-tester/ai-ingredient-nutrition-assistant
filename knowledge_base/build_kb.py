@@ -30,7 +30,12 @@ from langchain_openai import OpenAIEmbeddings
 load_dotenv()
 
 DOCUMENTS_DIR: Path = Path(__file__).parent / "documents"
-CHROMA_PERSIST_DIR: Path = Path(os.getenv("CHROMA_PERSIST_DIR", "./chroma_db")).resolve()
+CHROMA_PERSIST_DIR: Path = Path(
+    os.environ.get(
+        "CHROMA_PERSIST_DIR",
+        "/tmp/chroma_db" if os.path.exists("/tmp") else "./chroma_db",
+    )
+).resolve()
 COLLECTION_NAME: str = "nutrition_kb"
 EMBEDDING_MODEL: str = "text-embedding-3-small"
 
