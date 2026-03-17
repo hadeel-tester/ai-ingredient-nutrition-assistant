@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnableLambda
 from langchain_openai import ChatOpenAI
 
 from rag.retriever import NO_RELEVANT_CONTEXT, get_retriever, retrieve_context
@@ -35,6 +35,14 @@ MODEL_NAME: str = "gpt-4o-mini"
 # All tools available to the agent. The LLM decides which to call based on the
 # question — no explicit routing logic needed.
 TOOLS = [lookup_product, analyze_product_ingredients, check_allergens, evaluate_nutrition, score_health]
+
+# Disclaimer appended programmatically when no KB context was found.
+# Not left to the LLM — guaranteed to appear on every general-knowledge response.
+_DISCLAIMER_TEXT: str = (
+    "\n\n⚠️ This information is from general knowledge — it has not been verified "
+    "against our curated knowledge base. For verified information, this ingredient "
+    "will be added in a future update."
+)
 
 # ---------------------------------------------------------------------------
 # Agent prompt
@@ -92,13 +100,8 @@ When answering questions, follow these sourcing rules:
 1. If the answer is found in the knowledge base context provided below, answer from it \
 and cite the sources mentioned in the context.
 
-2. If the context is partial or only loosely related, use it combined with your general \
-knowledge and indicate which parts come from the knowledge base vs general knowledge.
-
-3. If the context below contains only the text "NO_RELEVANT_CONTEXT_FOUND", answer from your \
-general knowledge but add this note at the end:
-"⚠️ This information is from general knowledge — it has not been verified against our \
-curated knowledge base. For verified information, this ingredient will be added in a future update."
+2. If the context is partial or only loosely related, combine it with your general \
+knowledge and answer directly.
 
 Always be accurate and cite uncertainty where it exists. Do not hallucinate nutritional values \
 — use the tools and knowledge base instead.
@@ -166,19 +169,23 @@ def build_chat_chain():
     """Build and return the RAG-augmented tool-calling agent chain.
 
     Chain flow:
-        {"input": str, "chat_history": list}
-          → fetch RAG context (retriever.invoke(input))
-          → AgentExecutor loop (LLM + tools)
-          → {"output": str, ...}
+        {"input": str, "chat_history": list, "user_profile": dict}
+          → retrieve_context()  — fetches KB chunks; returns NO_RELEVANT_CONTEXT if none match
+          → AgentExecutor loop  — LLM + tools
+          → post-processing     — appends disclaimer if context was NO_RELEVANT_CONTEXT
+
+    The disclaimer is appended in Python rather than relying on the LLM to include
+    it, because LLMs do not reliably follow "always add this text" instructions.
 
     The returned chain accepts a dict with keys:
       - "input":        the user's message (str)
       - "chat_history": prior conversation turns (list of BaseMessage)
+      - "user_profile": user profile dict (pass {} if not set)
 
     It returns a dict; extract the response with result["output"].
 
     Returns:
-        A LangChain Runnable (LCEL chain wrapping AgentExecutor).
+        A LangChain Runnable (RunnableLambda wrapping AgentExecutor).
     """
     retriever = get_retriever()
     llm = ChatOpenAI(model=MODEL_NAME, temperature=0.2, streaming=True, stream_usage=True)
@@ -187,14 +194,16 @@ def build_chat_chain():
     agent_executor = AgentExecutor(agent=agent, tools=TOOLS, verbose=False,
                                    return_intermediate_steps=True)
 
-    # Pre-fetch RAG context and format user profile before the agent runs.
-    # RunnablePassthrough.assign adds new keys without dropping "input" /
-    # "chat_history" / "user_profile" already present in the input dict.
-    chain = (
-        RunnablePassthrough.assign(
-            context=lambda x: retrieve_context(x["input"], retriever),
-            user_profile=lambda x: _format_profile(x.get("user_profile", {})),
-        )
-        | agent_executor
-    )
-    return chain
+    def _run(inputs: dict) -> dict:
+        context = retrieve_context(inputs["input"], retriever)
+        result = agent_executor.invoke({
+            **inputs,
+            "context": context,
+            "user_profile": _format_profile(inputs.get("user_profile", {})),
+        })
+        if context == NO_RELEVANT_CONTEXT:
+            result = dict(result)
+            result["output"] = result["output"] + _DISCLAIMER_TEXT
+        return result
+
+    return RunnableLambda(_run)

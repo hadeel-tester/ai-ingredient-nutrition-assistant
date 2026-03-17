@@ -35,8 +35,17 @@ from utils.token_tracker import get_tracker
 # Constants
 # ---------------------------------------------------------------------------
 
-_WARNING_MARKER = "⚠️"
 _NUTRITION_PLACEHOLDER = "NUTRITION_TABLE_HERE"
+
+# Matches the full general-knowledge disclaimer the LLM emits under Rule 3
+# (NO_RELEVANT_CONTEXT_FOUND).  Anchored to the leading ⚠️ and trailing
+# "future update." so that other legitimate ⚠️ uses (e.g. PKU health warnings)
+# are left as ordinary markdown and do NOT trigger the yellow warning box.
+_DISCLAIMER_SENTINEL: str = "has not been verified against our curated knowledge base"
+_DISCLAIMER_RE: re.Pattern = re.compile(
+    r"⚠️[^⚠️]*has not been verified against our curated knowledge base.*?future update\.?",
+    re.IGNORECASE | re.DOTALL,
+)
 
 # Regex that matches traffic-light colour words at the end of a line, e.g.
 # "Calories: Red" or "Fat: green".  Case-insensitive so the LLM's exact
@@ -134,25 +143,31 @@ def _badge_traffic_lights(text: str) -> str:
 
 
 def _render_assistant_text(text: str) -> None:
-    """Render assistant response with traffic-light badges and ⚠️ warnings.
+    """Render assistant response with traffic-light badges and disclaimer warnings.
 
     Two post-processing passes on the LLM's raw text:
       1. Traffic-light words (Green/Amber/Red) → coloured emoji badges
-      2. ⚠️ general-knowledge disclaimers → st.warning() yellow box
+      2. The specific general-knowledge disclaimer sentence → st.warning() yellow box
+
+    Only the full disclaimer phrase ("has not been verified against our curated
+    knowledge base") triggers the yellow box.  Other ⚠️ symbols in the response
+    (e.g. health cautions like PKU warnings) render as normal markdown.
 
     Args:
         text: Full assistant response string.
     """
     text = _badge_traffic_lights(text)
 
-    if _WARNING_MARKER not in text:
+    match = _DISCLAIMER_RE.search(text)
+    if not match:
         st.markdown(text)
         return
-    parts = text.split(_WARNING_MARKER, maxsplit=1)
-    main_text = parts[0].rstrip()
+
+    disclaimer = match.group(0).strip()
+    main_text = (text[:match.start()] + text[match.end():]).strip()
     if main_text:
         st.markdown(main_text)
-    st.warning(_WARNING_MARKER + parts[1].strip())
+    st.warning(disclaimer)
 
 
 def _render_message(msg: dict) -> None:
