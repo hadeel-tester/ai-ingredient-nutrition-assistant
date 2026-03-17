@@ -1,5 +1,7 @@
 # NutriMind AI — Ingredient & Nutrition Assistant
 
+**[Live demo →](https://ai-ingredient-nutrition-assistant.streamlit.app/)**
+
 An AI-powered food product analysis chatbot built with LangChain, RAG, and Streamlit.
 Ask about any food product by name or barcode and get a full breakdown: ingredient health risks, EU allergens, nutritional evaluation, and an overall health score — all personalised to your dietary profile.
 
@@ -232,6 +234,7 @@ When either limit is hit, the UI shows an inline warning instead of dispatching 
 - **Ingredient parsing** — The ingredient parser handles most EU-format labels but may miss deeply nested sub-ingredients or non-standard formatting from some Open Food Facts entries.
 - **Serving size defaults** — Nutritional evaluation currently uses per-100g as the reference unit. Product-specific serving sizes (e.g. 330ml for a can, 30g for cereal) are not yet dynamically inferred from product data.
 - **Saturated fat data gaps** — Some Open Food Facts entries don't include `saturated-fat_100g` in their nutriment data, causing the field to show 0g even when the product contains saturated fat.
+- **Streamlit Cloud cold start** — The knowledge base is built in memory on each cold start (~30–60 seconds on first load). This is expected behaviour due to Streamlit Cloud's read-only filesystem.
 - **Single-user architecture** — Rate limiting uses Streamlit session state, which works for demos and single-user deployments. A production multi-user deployment would require a shared backend store (Redis or similar) for rate limiting and user profiles.
 - **LLM non-determinism** — Tool chaining is enforced via the system prompt. Occasionally the LLM may not call all tools for ambiguous queries, though mandatory chaining instructions mitigate this for product lookups.
 
