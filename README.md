@@ -16,7 +16,7 @@ Built as part of an AI Engineering programme, this project combines a live produ
 ## Features
 
 - **Live product lookup** via Open Food Facts API (barcode or name)
-- **Ingredient health analysis** backed by a curated knowledge base (30+ ingredients)
+- **Ingredient health analysis** backed by a curated knowledge base (38 ingredients)
 - **EU allergen detection** — all 14 regulated allergens with E-number recognition
 - **Nutritional evaluation** with UK FSA traffic light ratings and % daily intake
 - **Health scoring** — 0–100 score with A–F grade, positives/negatives breakdown
