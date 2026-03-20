@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 
 import chromadb
+from chromadb.api import ClientAPI
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 
@@ -21,10 +22,10 @@ CHROMA_PERSIST_DIR = '/tmp/chroma_db' if _IS_STREAMLIT_CLOUD else os.path.join(
 print(f"[vectorstore] CHROMA_PERSIST_DIR = {CHROMA_PERSIST_DIR}")
 COLLECTION_NAME: str = "nutrition_kb"
 
-_chroma_client: chromadb.ClientAPI | None = None
+_chroma_client: ClientAPI | None = None
 
 
-def get_chroma_client() -> chromadb.ClientAPI:
+def get_chroma_client() -> ClientAPI:
     """Return (or create) the shared ChromaDB client.
 
     Uses EphemeralClient (in-memory) on Streamlit Cloud to avoid filesystem
